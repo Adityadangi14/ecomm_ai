@@ -1,0 +1,44 @@
+server:
+  AppVersion: 1.0.0
+  Port: :3000
+  PprofPort: :5555
+  Mode: Development
+  JwtSecretKey: secretkey
+  CookieName: jwt-token
+  ReadTimeout: 5
+  WriteTimeout: 5
+  SSL: true
+  CtxDefaultTimeout: 12
+  CSRF: true
+  Debug: false
+  MaxConnectionIdle: 5
+  Timeout: 15
+  MaxConnectionAge: 5
+  Time: 120
+
+rabbitmq:
+  Host: rabbitmq
+  Port: 5672
+  User: guest
+  Password: guest
+  Exchange: product-exchange
+  Queue: product-queue
+  RoutingKey: product-routing-key
+  ConsumerTag: product-consumer
+  WorkerPoolSize: 24
+
+redis:
+  RedisAddr: redis:6379
+  RedisPassword:
+  RedisDb: 0
+  RedisDefaultdb: 0
+  MinIdleConns: 200
+  PoolSize: 12000
+  PoolTimeout: 240
+  Password: ""
+  DB: 0
+
+weaviate:
+  host: weaviate:8080
+  scheme: http
+  timeoutMs: 5000
