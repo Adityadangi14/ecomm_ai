@@ -99,23 +99,27 @@ func (p *ProductConsumer) CreateChannel(exchangeName, queueName, bindingKey, con
 	return ch, nil
 }
 
-func (p *ProductConsumer) worker(ctx context.Context, messages <-chan amqp.Delivery) {
-	var body models.ProductsModel
-	for delivery := range messages {
-		err := json.Unmarshal(delivery.Body, &body)
-		if err != nil {
-			delivery.Reject(false)
-		} else {
-			err = p.prodRepo.SaveProduct(ctx, body)
+func (p *ProductConsumer) worker(ctx context.Context, id int, jobs <-chan amqp.Delivery) {
+	for delivery := range jobs {
+		fmt.Printf("Worker %d processing: %s\n", id, delivery.Body)
 
-			if err != nil {
-				delivery.Reject(true)
-			}
-			err := delivery.Ack(false)
-
-			fmt.Println("failed to ack delivery", err)
+		var body models.Product
+		if err := json.Unmarshal(delivery.Body, &body); err != nil {
+			fmt.Printf("Worker %d: invalid JSON: %v\n", id, err)
+			_ = delivery.Reject(false)
+			continue
 		}
 
+		err := p.prodRepo.SaveProduct(ctx, body)
+		if err != nil {
+			fmt.Printf("Worker %d: save failed: %v\n", id, err)
+			_ = delivery.Reject(true)
+			continue
+		}
+
+		if err := delivery.Ack(false); err != nil {
+			fmt.Printf("Worker %d: Ack failed: %v\n", id, err)
+		}
 	}
 }
 
@@ -142,10 +146,20 @@ func (p *ProductConsumer) StartConsumer(workerPoolSize int, exchange, queueName,
 		return errors.Wrap(err, "Consume")
 	}
 
+	jobs := make(chan amqp.Delivery, workerPoolSize*2)
+
+	// Start worker pool
 	for i := 0; i < workerPoolSize; i++ {
-		go p.worker(ctx, deliveries)
+		go p.worker(ctx, i, jobs)
 	}
 
+	// Consumer loop
+	go func() {
+		for d := range deliveries {
+			jobs <- d
+		}
+		close(jobs)
+	}()
 	chanErr := <-ch.NotifyClose(make(chan *amqp.Error))
 
 	return chanErr

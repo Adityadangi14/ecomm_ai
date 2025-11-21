@@ -6,9 +6,11 @@ import (
 
 	"github.com/Adityadangi14/ecomm_ai/config"
 	"github.com/Adityadangi14/ecomm_ai/pkg/WDB"
+	"github.com/Adityadangi14/ecomm_ai/products-service/handlers"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/mq"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
-	"github.com/gofiber/fiber"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/routes"
+	"github.com/gofiber/fiber/v2"
 	"github.com/streadway/amqp"
 )
 
@@ -47,11 +49,6 @@ func (s *Server) Run() error {
 	prodConu := mq.NewProductsConsumer(s.amqp, prodRepo)
 
 	go func() {
-		fmt.Println("consumer args", s.cfg.RabbitMQ.WorkerPoolSize,
-			s.cfg.RabbitMQ.Exchange,
-			s.cfg.RabbitMQ.Queue,
-			s.cfg.RabbitMQ.RoutingKey,
-			s.cfg.RabbitMQ.ConsumerTag)
 		err := prodConu.StartConsumer(
 			s.cfg.RabbitMQ.WorkerPoolSize,
 			s.cfg.RabbitMQ.Exchange,
@@ -65,6 +62,10 @@ func (s *Server) Run() error {
 
 		}
 	}()
+
+	apiHandler := handlers.NewHandler(proPub, prodRepo)
+
+	routes.RegisterRoutes(app, *apiHandler)
 
 	log.Fatal(app.Listen(":3000"))
 
