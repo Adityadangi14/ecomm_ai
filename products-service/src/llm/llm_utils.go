@@ -180,7 +180,6 @@ func (a *aiclient) GetAiQueryReponse(params models.AiQueryParams, msg chan model
 
 	defer stream.Close()
 	defer close(msg)
-	defer wg.Done()
 
 	if stream.Err() != nil {
 		fmt.Println("Stream error:", stream.Err())
