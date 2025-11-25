@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/models"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/mq"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
@@ -15,12 +16,15 @@ import (
 
 type Handlers struct {
 	ProductHandlers ProductHandlers
+	QueryHandler    QueryHandler
 }
 
-func NewHandler(pub mq.ProductPublisher, productRepo repository.ProductRepository) *Handlers {
+func NewHandler(pub mq.ProductPublisher, productRepo repository.ProductRepository, aiCLient llm.Aiclient) *Handlers {
 	prodHandler := NewProductHandlers(pub, productRepo)
+	queryHandler := NewQueryHandler(aiCLient)
 	return &Handlers{
 		ProductHandlers: prodHandler,
+		QueryHandler:    queryHandler,
 	}
 
 }

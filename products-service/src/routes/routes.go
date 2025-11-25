@@ -10,4 +10,5 @@ func RegisterRoutes(app *fiber.App, handlers handlers.Handlers) {
 
 	v1.Post("/uploadProducts", handlers.ProductHandlers.UploadProducts)
 	v1.Delete("/deleteAllProducts", handlers.ProductHandlers.DeleteAllProducts)
+	v1.Post("/response", handlers.QueryHandler.GetAiResponse)
 }

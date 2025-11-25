@@ -7,9 +7,11 @@ import (
 	"github.com/Adityadangi14/ecomm_ai/config"
 	"github.com/Adityadangi14/ecomm_ai/pkg/WDB"
 	"github.com/Adityadangi14/ecomm_ai/products-service/handlers"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/mq"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/routes"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/schema"
 	"github.com/gofiber/fiber/v2"
 	"github.com/streadway/amqp"
 )
@@ -28,7 +30,15 @@ func (s *Server) Run() error {
 
 	app := fiber.New()
 
-	proPub, err := mq.NewProductsPublisher(s.amqp, s.cfg)
+	aiClient := llm.NewAiClient()
+
+	proPub, err := mq.NewProductsPublisher(s.amqp, s.cfg, aiClient)
+
+	err = schema.CreateProductClass(s.db.DB)
+
+	if err != nil {
+		fmt.Println("Failed to create product class", err)
+	}
 
 	if err != nil {
 		return err
@@ -46,7 +56,7 @@ func (s *Server) Run() error {
 	//defer proPub.CloseChan()
 
 	prodRepo := repository.NewProductRepository(s.db)
-	prodConu := mq.NewProductsConsumer(s.amqp, prodRepo)
+	prodConu := mq.NewProductsConsumer(s.amqp, prodRepo, aiClient)
 
 	go func() {
 		err := prodConu.StartConsumer(
@@ -63,7 +73,7 @@ func (s *Server) Run() error {
 		}
 	}()
 
-	apiHandler := handlers.NewHandler(proPub, prodRepo)
+	apiHandler := handlers.NewHandler(proPub, prodRepo, aiClient)
 
 	routes.RegisterRoutes(app, *apiHandler)
 
