@@ -12,6 +12,7 @@ import (
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
 	"github.com/Adityadangi14/ecomm_ai/utils"
 	"github.com/gofiber/fiber/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 type Handlers struct {
@@ -19,9 +20,9 @@ type Handlers struct {
 	QueryHandler    QueryHandler
 }
 
-func NewHandler(pub mq.ProductPublisher, productRepo repository.ProductRepository, aiCLient llm.Aiclient) *Handlers {
+func NewHandler(pub mq.ProductPublisher, productRepo repository.ProductRepository, aiCLient llm.Aiclient, rdb *redis.Client) *Handlers {
 	prodHandler := NewProductHandlers(pub, productRepo)
-	queryHandler := NewQueryHandler(aiCLient)
+	queryHandler := NewQueryHandler(aiCLient, rdb)
 	return &Handlers{
 		ProductHandlers: prodHandler,
 		QueryHandler:    queryHandler,

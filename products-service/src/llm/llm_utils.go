@@ -8,28 +8,34 @@ import (
 	"os"
 	"time"
 
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/helpers"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/models"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
 	"github.com/Adityadangi14/ecomm_ai/utils"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+	"github.com/redis/go-redis/v9"
 )
 
 type Aiclient interface {
 	ImageByteToText(context.Context, string) (string, error)
-	SummerizePastQueris([]string) string
+	SummerizePastQueris(string) string
 	GetSementicText(map[string]any) (string, error)
 	ProcessProduct(prod models.Product) (map[string]any, error)
 	GetAiQueryReponse(params models.AiQueryParams, msg chan models.MessageChanStruct)
+	SummerizePastChats(pastSummary string, query string) string
 }
 
 type aiclient struct {
-	LlmClient *openai.Client
+	LlmClient   *openai.Client
+	rbd         *redis.Client
+	productRepo repository.ProductRepository
 }
 
-func NewAiClient() Aiclient {
+func NewAiClient(rdb *redis.Client, productRepo repository.ProductRepository) Aiclient {
 	key := os.Getenv("OPENAI_KEY")
 	client := openai.NewClient(option.WithAPIKey(key))
-	return &aiclient{LlmClient: &client}
+	return &aiclient{LlmClient: &client, rbd: rdb, productRepo: productRepo}
 }
 
 func (a *aiclient) ImageByteToText(ctx context.Context, url string) (string, error) {
@@ -81,8 +87,61 @@ func (a *aiclient) ImageByteToText(ctx context.Context, url string) (string, err
 	return resp.Choices[0].Message.Content, nil
 }
 
-func (a *aiclient) SummerizePastQueris([]string) string {
-	return ""
+func (a *aiclient) SummerizePastQueris(query string) string {
+
+	resp, err := a.LlmClient.Chat.Completions.New(
+		context.Background(),
+		openai.ChatCompletionNewParams{
+			Model: openai.ChatModelGPT4Turbo,
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.SystemMessage("Using only the information provided, condense the user's decayed search queries into a single, concise sentence that captures the overall intent and topics, strictly avoiding opinions, assumptions, extra details, or creative additions. Preserve the meaning according to the weight (higher-weight queries influence the summary more), and produce only one clear summary line as output."),
+				openai.UserMessage(query),
+			},
+			MaxTokens: openai.Int(60),
+		},
+	)
+
+	if err != nil {
+		log.Println("OpenAI summary error:", err)
+		return ""
+	}
+
+	if len(resp.Choices) == 0 {
+		return ""
+	}
+
+	return resp.Choices[0].Message.Content
+}
+
+func (a *aiclient) SummerizePastChats(pastSummary string, query string) string {
+
+	resp, err := a.LlmClient.Chat.Completions.New(
+		context.Background(),
+		openai.ChatCompletionNewParams{
+			Model: openai.ChatModelGPT4Turbo,
+			Messages: []openai.ChatCompletionMessageParamUnion{
+				openai.UserMessage("Previous Summary: " + pastSummary),
+
+				// New message to incorporate into summary
+				openai.UserMessage("Latest Message: " + query),
+
+				// Explicit instruction to merge them
+				openai.UserMessage(CHAT_SUMMARY_PROMPT),
+			},
+			Temperature: openai.Float(0.2),
+		},
+	)
+
+	if err != nil {
+		log.Println("OpenAI summary error:", err)
+		return ""
+	}
+
+	if len(resp.Choices) == 0 {
+		return ""
+	}
+
+	return resp.Choices[0].Message.Content
 }
 
 func (a *aiclient) GetSementicText(prod map[string]any) (string, error) {
@@ -107,7 +166,6 @@ func (a *aiclient) GetSementicText(prod map[string]any) (string, error) {
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage(finalPrompt),
 		},
-		Temperature: openai.Float(0.4),
 	}
 
 	var resp *openai.ChatCompletion
@@ -170,12 +228,46 @@ func (a *aiclient) ProcessProduct(prod models.Product) (map[string]any, error) {
 
 func (a *aiclient) GetAiQueryReponse(params models.AiQueryParams, msg chan models.MessageChanStruct) {
 
+	key := helpers.GetUserQueriesKey(params)
+
+	err := helpers.SetUserQueries(a.rbd, params.Query, key, context.Background())
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	res, err := helpers.GetQueriesWithDecay(context.Background(), a.rbd, key)
+
+	querySummary := a.SummerizePastQueris(res)
+
+	fmt.Println("querysummary", querySummary)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	products, err := a.productRepo.NearSearchProducts(context.Background(), querySummary, params.OrgID)
+
+	fmt.Println("products", products)
+
+	if err != nil {
+		fmt.Println("unable to do near search", err)
+	}
+
+	byt, err := json.Marshal(products)
+
+	chatRes, err := helpers.GetUserChat(context.Background(), a.rbd, helpers.GetUserChatKey(params))
+
+	fmt.Println("chatSummary", chatRes)
+
 	stream := a.LlmClient.Chat.Completions.NewStreaming(context.Background(), openai.ChatCompletionNewParams{
-		Model: openai.ChatModelGPT4oMini,
+		Model: openai.ChatModelGPT4_1,
 		Messages: []openai.ChatCompletionMessageParamUnion{
-			openai.UserMessage("Hello, please stream a response."),
+			openai.SystemMessage(fmt.Sprintf("These are the products you can recommend \n %v", string(byt))),
+			openai.DeveloperMessage(RESPONSE_UI_COMPONENTS_AND_PROMPT),
+			openai.AssistantMessage(fmt.Sprintf("This is previous chat summary \n %v", chatRes)),
+			openai.UserMessage(params.Query),
 		},
-		Temperature: openai.Float(0.7),
 	})
 
 	defer stream.Close()

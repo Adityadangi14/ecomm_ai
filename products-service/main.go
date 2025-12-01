@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
+
+	_ "net/http/pprof"
 
 	"github.com/Adityadangi14/ecomm_ai/config"
 	"github.com/Adityadangi14/ecomm_ai/pkg/WDB"
@@ -43,6 +47,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	go func() {
+		fmt.Println("Starting pprof server on :6060")
+		http.ListenAndServe(":6060", nil)
+	}()
 
 	s := server.NewProductServer(wdb, amqpConn, cfg)
 

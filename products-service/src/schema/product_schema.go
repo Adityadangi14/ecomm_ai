@@ -99,6 +99,15 @@ func CreateProductClass(client *weaviate.Client) error {
 				},
 			},
 			{
+				Name:     "attr_1_value",
+				DataType: []string{"text"},
+				ModuleConfig: map[string]interface{}{
+					"text2vec-transformers": map[string]interface{}{
+						"skip": true,
+					},
+				},
+			},
+			{
 				Name:     "attr_1_attributeName",
 				DataType: []string{"text"},
 				ModuleConfig: map[string]interface{}{

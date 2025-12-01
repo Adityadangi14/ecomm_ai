@@ -83,6 +83,7 @@ services:
 
     ports:
       - "3000:3000"
+      - "6060:6060"
     #restart: unless-stopped
     depends_on:
       weaviate:
@@ -93,6 +94,57 @@ services:
         condition: service_started
     networks:
       - web
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    ports:
+      - "5540:5540"
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - web
+
+  # openresty:
+  #   build:
+  #     context: ./nginx
+  #     dockerfile: Dockerfile
+  #   container_name: openresty
+  #   command: ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
+  #   volumes:
+  #     - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+  #     - ./nginx/lua/jwt_auth.lua:/usr/local/openresty/nginx/lua/jwt_auth.lua
+  #     - ./certbot/conf:/etc/letsencrypt:ro
+  #     - ./certbot/www:/var/www/certbot
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   # environment:
+  #   #   - JWT_SECRET=${JWT_SECRET}
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - go-server
+  #     # - grafana
+  #     - weaviate
+  #   networks:
+  #     - web
+  #   #profiles: ["dev"]
+  #   restart: unless-stopped
+  
+  # certbot:
+  #   image: certbot/certbot
+
+  #   container_name: certbot
+  #   volumes:
+  #     - ./certbot/conf:/etc/letsencrypt
+  #     - ./certbot/www:/var/www/certbot
+  #   entrypoint: >
+  #     sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email muneet.dhanker@omlogic.com --agree-tos --no-eff-email -d stagingai.solhapp.com"
+  #   networks:
+  #     - web
 
 volumes:
   rabbitmq_data:

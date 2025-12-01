@@ -35,10 +35,10 @@ func (p *prodRepo) NearSearchProducts(ctx context.Context, query string, orgID s
 	hybrid := p.WDB.DB.GraphQL().HybridArgumentBuilder().
 		WithQuery(query).
 		WithAlpha(0.8)
-	whereFilter := filters.Where().WithOperator(filters.Equal).
-		WithOperands([]*filters.WhereBuilder{
-			filters.Where().WithPath([]string{"orgId"}).WithOperator(filters.Equal).WithValueText(orgID),
-		})
+	whereFilter := filters.Where().
+		WithPath([]string{"orgId"}).
+		WithOperator(filters.Equal).
+		WithValueText(orgID)
 
 	resp, err := p.WDB.DB.GraphQL().Get().
 		WithClassName("Product").
@@ -79,6 +79,7 @@ func (p *prodRepo) NearSearchProducts(ctx context.Context, query string, orgID s
 		return nil, fmt.Errorf("invalid Get response format")
 	}
 
+	fmt.Println("near search products", products)
 	rawProducts, ok := getMap["Product"].([]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid Product result format")
