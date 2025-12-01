@@ -27,7 +27,7 @@ const (
 	publishMandatory = false
 	publishImmediate = false
 
-	prefetchCount  = 1
+	prefetchCount  = 24
 	prefetchSize   = 0
 	prefetchGlobal = false
 
