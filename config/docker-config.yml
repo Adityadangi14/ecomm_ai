@@ -25,7 +25,7 @@ rabbitmq:
   Queue: product-queue
   RoutingKey: product-routing-key
   ConsumerTag: product-consumer
-  WorkerPoolSize: 24
+  WorkerPoolSize: 5
 
 redis:
   RedisAddr: redis:6379
