@@ -63,7 +63,7 @@ func (p *prodRepo) NearSearchProducts(ctx context.Context, query string, orgID s
 			weaviategraphql.Field(weaviategraphql.Field{Name: "name"}),
 			weaviategraphql.Field(weaviategraphql.Field{Name: "priceCurrency"}),
 		).
-		WithLimit(5).
+		WithLimit(10).
 		WithWhere(whereFilter).
 		WithHybrid(hybrid).
 		Do(context.Background())
