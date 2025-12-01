@@ -6,7 +6,7 @@ import (
 
 	"github.com/Adityadangi14/ecomm_ai/config"
 	"github.com/Adityadangi14/ecomm_ai/pkg/WDB"
-	"github.com/Adityadangi14/ecomm_ai/products-service/handlers"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/handlers"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/mq"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/routes"
