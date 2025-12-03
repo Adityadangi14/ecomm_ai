@@ -110,7 +110,7 @@ services:
   openresty:
     build:
       context: ./nginx
-      dockerfile: Dockerfile
+      #dockerfile: Dockerfile
     container_name: openresty
     command: ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
     volumes:
