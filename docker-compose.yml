@@ -117,7 +117,7 @@ services:
       - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
       # - ./nginx/lua/jwt_auth.lua:/usr/local/openresty/nginx/lua/jwt_auth.lua
       # - ./certbot/conf:/etc/letsencrypt:ro
-      # - ./certbot/www:/var/www/certbot
+      - ./certbot/www:/var/www/certbot
     ports:
       - "80:80"
       - "443:443"
