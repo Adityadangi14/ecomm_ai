@@ -108,9 +108,9 @@ services:
       - web
 
   openresty:
-    build:
-      context: ./nginx
-      #dockerfile: Dockerfile
+    # build:
+    #   context: ./nginx
+    #   #dockerfile: Dockerfile
     container_name: openresty
     command: ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
     volumes:
