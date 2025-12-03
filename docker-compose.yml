@@ -133,18 +133,18 @@ services:
   #     - web
   #   #profiles: ["dev"]
   #   restart: unless-stopped
-  
-  # certbot:
-  #   image: certbot/certbot
 
-  #   container_name: certbot
-  #   volumes:
-  #     - ./certbot/conf:/etc/letsencrypt
-  #     - ./certbot/www:/var/www/certbot
-  #   entrypoint: >
-  #     sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email muneet.dhanker@omlogic.com --agree-tos --no-eff-email -d stagingai.solhapp.com"
-  #   networks:
-  #     - web
+  certbot:
+    image: certbot/certbot
+
+    container_name: certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: >
+      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email muneet.dhanker@omlogic.com --agree-tos --no-eff-email -d ai.omlogic.com"
+    networks:
+      - web
 
 volumes:
   rabbitmq_data:
