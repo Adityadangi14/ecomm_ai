@@ -107,32 +107,32 @@ services:
     networks:
       - web
 
-  # openresty:
-  #   build:
-  #     context: ./nginx
-  #     dockerfile: Dockerfile
-  #   container_name: openresty
-  #   command: ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
-  #   volumes:
-  #     - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
-  #     - ./nginx/lua/jwt_auth.lua:/usr/local/openresty/nginx/lua/jwt_auth.lua
-  #     - ./certbot/conf:/etc/letsencrypt:ro
-  #     - ./certbot/www:/var/www/certbot
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   # environment:
-  #   #   - JWT_SECRET=${JWT_SECRET}
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - go-server
-  #     # - grafana
-  #     - weaviate
-  #   networks:
-  #     - web
-  #   #profiles: ["dev"]
-  #   restart: unless-stopped
+  openresty:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: openresty
+    command: ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
+    volumes:
+      - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      # - ./nginx/lua/jwt_auth.lua:/usr/local/openresty/nginx/lua/jwt_auth.lua
+      # - ./certbot/conf:/etc/letsencrypt:ro
+      # - ./certbot/www:/var/www/certbot
+    ports:
+      - "80:80"
+      - "443:443"
+    # environment:
+    #   - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - go-server
+      # - grafana
+      - weaviate
+    networks:
+      - web
+    #profiles: ["dev"]
+    restart: unless-stopped
 
   certbot:
     image: certbot/certbot
