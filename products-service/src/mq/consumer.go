@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/models"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
 	"github.com/pkg/errors"
@@ -26,7 +27,7 @@ const (
 	publishMandatory = false
 	publishImmediate = false
 
-	prefetchCount  = 1
+	prefetchCount  = 2
 	prefetchSize   = 0
 	prefetchGlobal = false
 
@@ -39,10 +40,11 @@ const (
 type ProductConsumer struct {
 	amqpConn *amqp.Connection
 	prodRepo repository.ProductRepository
+	Aiclient llm.Aiclient
 }
 
-func NewProductsConsumer(ampqConn *amqp.Connection, prodRep repository.ProductRepository) *ProductConsumer {
-	return &ProductConsumer{amqpConn: ampqConn, prodRepo: prodRep}
+func NewProductsConsumer(ampqConn *amqp.Connection, prodRep repository.ProductRepository, aiClient llm.Aiclient) *ProductConsumer {
+	return &ProductConsumer{amqpConn: ampqConn, prodRepo: prodRep, Aiclient: aiClient}
 }
 
 func (p *ProductConsumer) CreateChannel(exchangeName, queueName, bindingKey, consumerTag string) (*amqp.Channel, error) {
@@ -101,7 +103,7 @@ func (p *ProductConsumer) CreateChannel(exchangeName, queueName, bindingKey, con
 
 func (p *ProductConsumer) worker(ctx context.Context, id int, jobs <-chan amqp.Delivery) {
 	for delivery := range jobs {
-		fmt.Printf("Worker %d processing: %s\n", id, delivery.Body)
+		// fmt.Printf("Worker %d processing: %s\n", id, delivery.Body)
 
 		var body models.Product
 		if err := json.Unmarshal(delivery.Body, &body); err != nil {
@@ -110,16 +112,27 @@ func (p *ProductConsumer) worker(ctx context.Context, id int, jobs <-chan amqp.D
 			continue
 		}
 
-		err := p.prodRepo.SaveProduct(ctx, body)
+		res, err := p.Aiclient.ProcessProduct(body)
+
 		if err != nil {
-			fmt.Printf("Worker %d: save failed: %v\n", id, err)
+
+			fmt.Println("error in processing product", err)
+
 			_ = delivery.Reject(true)
-			continue
+		} else {
+			fmt.Println("product to save ", res)
+			err = p.prodRepo.SaveProduct(ctx, res)
+			if err != nil {
+				fmt.Printf("Worker %d: save failed: %v\n", id, err)
+				_ = delivery.Reject(true)
+				continue
+			}
+
+			if err := delivery.Ack(false); err != nil {
+				fmt.Printf("Worker %d: Ack failed: %v\n", id, err)
+			}
 		}
 
-		if err := delivery.Ack(false); err != nil {
-			fmt.Printf("Worker %d: Ack failed: %v\n", id, err)
-		}
 	}
 }
 

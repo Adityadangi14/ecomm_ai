@@ -6,10 +6,14 @@ import (
 
 	"github.com/Adityadangi14/ecomm_ai/config"
 	"github.com/Adityadangi14/ecomm_ai/pkg/WDB"
+	"github.com/Adityadangi14/ecomm_ai/pkg/redis"
+
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/handlers"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/mq"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/routes"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/schema"
 	"github.com/gofiber/fiber/v2"
 	"github.com/streadway/amqp"
 )
@@ -28,10 +32,26 @@ func (s *Server) Run() error {
 
 	app := fiber.New()
 
-	proPub, err := mq.NewProductsPublisher(s.amqp, s.cfg)
+	rdb, err := redis.ConnectToRedis(s.cfg)
+
+	if err != nil {
+		return fmt.Errorf("failed to connect to redis:%v", err)
+	}
+
+	prodRepo := repository.NewProductRepository(s.db)
+
+	aiClient := llm.NewAiClient(rdb, prodRepo)
+
+	proPub, err := mq.NewProductsPublisher(s.amqp, s.cfg, aiClient)
 
 	if err != nil {
 		return err
+	}
+
+	err = schema.CreateProductClass(s.db.DB)
+
+	if err != nil {
+		fmt.Println("Failed to create product class", err)
 	}
 
 	err = proPub.SetupExchangeAndQueue(s.cfg.RabbitMQ.Exchange,
@@ -45,8 +65,7 @@ func (s *Server) Run() error {
 
 	//defer proPub.CloseChan()
 
-	prodRepo := repository.NewProductRepository(s.db)
-	prodConu := mq.NewProductsConsumer(s.amqp, prodRepo)
+	prodConu := mq.NewProductsConsumer(s.amqp, prodRepo, aiClient)
 
 	go func() {
 		err := prodConu.StartConsumer(
@@ -63,7 +82,7 @@ func (s *Server) Run() error {
 		}
 	}()
 
-	apiHandler := handlers.NewHandler(proPub, prodRepo)
+	apiHandler := handlers.NewHandler(proPub, prodRepo, aiClient, rdb)
 
 	routes.RegisterRoutes(app, *apiHandler)
 

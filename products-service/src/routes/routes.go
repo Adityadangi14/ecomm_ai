@@ -14,4 +14,5 @@ func RegisterRoutes(app *fiber.App, handlers handlers.Handlers) {
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.StatusOK, "OK")
 	})
+	v1.Post("/response", handlers.QueryHandler.GetAiResponse)
 }

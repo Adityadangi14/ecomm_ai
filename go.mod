@@ -10,6 +10,8 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
@@ -53,6 +55,7 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/openai/openai-go/v3 v3.8.1
 	github.com/pkg/errors v0.9.1
+	github.com/redis/go-redis/v9 v9.17.0
 	github.com/streadway/amqp v1.1.0
 	github.com/weaviate/weaviate v1.27.0 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect

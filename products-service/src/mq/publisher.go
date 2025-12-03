@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Adityadangi14/ecomm_ai/config"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -20,15 +21,16 @@ var _ ProductPublisher = (*Productpublisher)(nil)
 type Productpublisher struct {
 	amqpChan *amqp.Channel
 	cfg      *config.Config
+	Aiclient llm.Aiclient
 }
 
-func NewProductsPublisher(mqConn *amqp.Connection, cfg *config.Config) (*Productpublisher, error) {
+func NewProductsPublisher(mqConn *amqp.Connection, cfg *config.Config, aiClient llm.Aiclient) (*Productpublisher, error) {
 
 	amqpChan, err := mqConn.Channel()
 	if err != nil {
 		return nil, err
 	}
-	return &Productpublisher{amqpChan: amqpChan, cfg: cfg}, nil
+	return &Productpublisher{amqpChan: amqpChan, cfg: cfg, Aiclient: aiClient}, nil
 }
 
 func (p *Productpublisher) SetupExchangeAndQueue(exchange, queueName, bindingKey, consumerTag string) error {

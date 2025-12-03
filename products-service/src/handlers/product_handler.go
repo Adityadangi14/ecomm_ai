@@ -6,21 +6,26 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/models"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/mq"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
 	"github.com/Adityadangi14/ecomm_ai/utils"
 	"github.com/gofiber/fiber/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 type Handlers struct {
 	ProductHandlers ProductHandlers
+	QueryHandler    QueryHandler
 }
 
-func NewHandler(pub mq.ProductPublisher, productRepo repository.ProductRepository) *Handlers {
+func NewHandler(pub mq.ProductPublisher, productRepo repository.ProductRepository, aiCLient llm.Aiclient, rdb *redis.Client) *Handlers {
 	prodHandler := NewProductHandlers(pub, productRepo)
+	queryHandler := NewQueryHandler(aiCLient, rdb)
 	return &Handlers{
 		ProductHandlers: prodHandler,
+		QueryHandler:    queryHandler,
 	}
 
 }
