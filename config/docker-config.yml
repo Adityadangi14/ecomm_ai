@@ -42,3 +42,25 @@ weaviate:
   host: weaviate:8080
   scheme: http
   timeoutMs: 5000
+
+kafka:
+  Brokers:
+    - kafka:9092 # List of bootstrap brokers
+  Topic: logs-topic # Default topic name
+  GroupID: logs-group # Consumer group ID
+  ClientID: logs-client # Unique client ID for tracing
+  TimeoutMs: 5000 # Request timeout
+  MinBytes: 1 # Minimum bytes to fetch (consumer)
+  MaxBytes: 1048576 # Maximum bytes per fetch (1MB)
+  CommitIntervalMs: 1000 # Auto-commit interval for consumer
+  MaxRetry: 5
+  RequiredAcks: -1 # -1 = all replicas must acknowledge
+  Compression: snappy # none, gzip, snappy, lz4, zstd
+  SASL:
+    Enabled: false
+    Mechanism: PLAIN # PLAIN, SCRAM-SHA256, SCRAM-SHA512
+    Username:
+    Password:
+  TLS:
+    Enabled: false
+    InsecureSkipVerify: false

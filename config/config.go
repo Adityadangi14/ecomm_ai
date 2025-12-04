@@ -15,6 +15,7 @@ type Config struct {
 	Postgres PostgresConfig
 	Redis    RedisConfig
 	Weaviate WeaviateConfig
+	Kafka    KafkaConfig
 }
 
 type ServerConfig struct {
@@ -74,6 +75,34 @@ type RedisConfig struct {
 	PoolTimeout    int
 	Password       string
 	DB             int
+}
+
+type KafkaConfig struct {
+	Brokers          []string
+	Topic            string
+	GroupID          string
+	ClientID         string
+	TimeoutMs        int
+	MinBytes         int
+	MaxBytes         int
+	CommitIntervalMs int
+	RequiredAcks     int
+	Compression      string
+	SASL             KafkaSASL
+	TLS              KafkaTLS
+	MaxRetry         int
+}
+
+type KafkaSASL struct {
+	Enabled   bool
+	Mechanism string
+	Username  string
+	Password  string
+}
+
+type KafkaTLS struct {
+	Enabled            bool
+	InsecureSkipVerify bool
 }
 
 func LoadConfig(filepath string) (*viper.Viper, error) {
