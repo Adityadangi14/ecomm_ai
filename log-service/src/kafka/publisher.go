@@ -52,6 +52,7 @@ func (l *logs) PushLogsToQueue(message []byte) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Log in published in %v %v", partition, offset)
+
+	log.Printf("Log published in %v %v", partition, offset)
 	return nil
 }
