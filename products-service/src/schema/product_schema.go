@@ -2,7 +2,7 @@ package schema
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
 	"github.com/weaviate/weaviate/entities/models"
@@ -19,7 +19,7 @@ func CreateProductClass(client *weaviate.Client) error {
 
 	for _, c := range existing.Classes {
 		if c.Class == "Product" {
-			fmt.Println("Class Product already exists, skipping creation")
+			slog.Info("Class Product already exists, skipping creation")
 			return nil
 		}
 	}

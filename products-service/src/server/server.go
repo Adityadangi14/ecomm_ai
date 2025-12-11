@@ -3,6 +3,8 @@ package server
 import (
 	"fmt"
 	"log"
+	"log/slog"
+	"os"
 
 	"github.com/Adityadangi14/ecomm_ai/config"
 	"github.com/Adityadangi14/ecomm_ai/pkg/WDB"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/handlers"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
+	"github.com/Adityadangi14/ecomm_ai/products-service/src/logging"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/mq"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/repository"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/routes"
@@ -29,6 +32,14 @@ func NewProductServer(wdb *WDB.WDB, mq *amqp.Connection, cfg *config.Config) *Se
 }
 
 func (s *Server) Run() error {
+
+	url := os.Getenv("logging_url")
+
+	serviceName := "products-service"
+
+	logging := logging.NewLogging(url, serviceName)
+	logHandler := slog.New(logging).With(slog.String("source", "enabled"))
+	slog.SetDefault(logHandler)
 
 	app := fiber.New()
 
@@ -51,7 +62,7 @@ func (s *Server) Run() error {
 	err = schema.CreateProductClass(s.db.DB)
 
 	if err != nil {
-		fmt.Println("Failed to create product class", err)
+		slog.Error("Failed to create product class", "error", err)
 	}
 
 	err = proPub.SetupExchangeAndQueue(s.cfg.RabbitMQ.Exchange,
@@ -60,7 +71,7 @@ func (s *Server) Run() error {
 		s.cfg.RabbitMQ.ConsumerTag)
 
 	if err != nil {
-		fmt.Println("Failed to setup exchange  and queue", err)
+		slog.Error("Failed to setup exchange  and queue", "error", err)
 	}
 
 	//defer proPub.CloseChan()
@@ -77,7 +88,7 @@ func (s *Server) Run() error {
 		)
 
 		if err != nil {
-			fmt.Println("failed to start product consumer: ", err)
+			slog.Error("failed to start product consumer: ", "error", err)
 
 		}
 	}()
@@ -85,7 +96,7 @@ func (s *Server) Run() error {
 	apiHandler := handlers.NewHandler(proPub, prodRepo, aiClient, rdb)
 
 	routes.RegisterRoutes(app, *apiHandler)
-
+	slog.Info("Product service server started at :3000")
 	log.Fatal(app.Listen(":3000"))
 
 	return nil
