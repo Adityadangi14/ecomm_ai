@@ -3,7 +3,7 @@ package mq
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log/slog"
 
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/models"
@@ -103,11 +103,10 @@ func (p *ProductConsumer) CreateChannel(exchangeName, queueName, bindingKey, con
 
 func (p *ProductConsumer) worker(ctx context.Context, id int, jobs <-chan amqp.Delivery) {
 	for delivery := range jobs {
-		// fmt.Printf("Worker %d processing: %s\n", id, delivery.Body)
 
 		var body models.Product
 		if err := json.Unmarshal(delivery.Body, &body); err != nil {
-			fmt.Printf("Worker %d: invalid JSON: %v\n", id, err)
+			slog.Error("Worker %d: invalid JSON:", "id", id, "error", err)
 			_ = delivery.Reject(false)
 			continue
 		}
@@ -116,20 +115,20 @@ func (p *ProductConsumer) worker(ctx context.Context, id int, jobs <-chan amqp.D
 
 		if err != nil {
 
-			fmt.Println("error in processing product", err)
+			slog.Error("error in processing product", "error", err)
 
 			_ = delivery.Reject(true)
 		} else {
-			fmt.Println("product to save ", res)
+			slog.Info("product to save ", "response", res)
 			err = p.prodRepo.SaveProduct(ctx, res)
 			if err != nil {
-				fmt.Printf("Worker %d: save failed: %v\n", id, err)
+				slog.Error("Product Save failed", "worker_id", id, "error", err)
 				_ = delivery.Reject(true)
 				continue
 			}
 
 			if err := delivery.Ack(false); err != nil {
-				fmt.Printf("Worker %d: Ack failed: %v\n", id, err)
+				slog.Error("Ack failed", "worker_id", id, "error", err)
 			}
 		}
 

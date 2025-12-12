@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/Adityadangi14/ecomm_ai/config"
@@ -46,7 +47,7 @@ func (l *logs) PushLogsToQueue(message []byte) error {
 		Topic: l.conf.Kafka.Topic,
 		Value: sarama.StringEncoder(message),
 	}
-
+	fmt.Println("log published to kafka", string(message))
 	partition, offset, err := prod.SendMessage(msg)
 
 	if err != nil {

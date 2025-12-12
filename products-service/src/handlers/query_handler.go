@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/helpers"
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
@@ -94,7 +95,7 @@ func SummerizePastChats(rdb *redis.Client, aiClient llm.Aiclient, response strin
 	key := helpers.GetUserChatKey(parms)
 	res, err := helpers.GetUserChat(context.Background(), rdb, key)
 	if err != nil {
-		fmt.Println("error getting user chat")
+		slog.Error("error getting user chat", "error", err)
 		return err
 	}
 
@@ -107,15 +108,15 @@ func SummerizePastChats(rdb *redis.Client, aiClient llm.Aiclient, response strin
 
 	if res == "" {
 		err := helpers.SetUserChat(rdb, key, string(str), context.Background())
-		fmt.Println("Error setting user chat ", err)
+		slog.Error("Error setting user chat ", "error", err)
 		return nil
 	}
 
-	fmt.Println("summerziation inputs", res, string(str))
+	slog.Info("summerziation inputs", "response", res, "query", string(str))
 	summary := aiClient.SummerizePastChats(res, string(str))
 
 	err = helpers.SetUserChat(rdb, key, summary, context.Background())
-	fmt.Println("summerize chats", res)
+	slog.Info("summerize chats", "chat", res)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/Adityadangi14/ecomm_ai/products-service/src/llm"
@@ -67,7 +68,7 @@ func (p *prodHandlers) UploadProducts(c *fiber.Ctx) error {
 		err = p.prodPublisher.Publish(byt, "text")
 
 		if err != nil {
-			fmt.Println(err)
+			slog.Error("Error publishing product", "error", err)
 			errors = append(errors, struct {
 				ProductID string
 				err       error

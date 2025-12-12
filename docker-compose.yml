@@ -92,6 +92,28 @@ services:
         condition: service_started
       redis:
         condition: service_started
+      log-server:
+        condition: service_started
+
+    networks:
+      - web
+
+  log-server:
+    build:
+      context: .
+      dockerfile: log-service/Dockerfile
+
+    ports:
+      - "4000:4000"
+
+    #restart: unless-stopped
+    depends_on:
+      weaviate:
+        condition: service_healthy
+      ecomm-rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - web
 
@@ -100,6 +122,8 @@ services:
     container_name: redisinsight
     ports:
       - "5540:5540"
+    environment:
+      - RI_PROXY_PATH=/redis-insight/
     restart: unless-stopped
     depends_on:
       redis:
@@ -107,66 +131,169 @@ services:
     networks:
       - web
 
-    # openresty:
-    #   build:
-    #     context: ./nginx
-    #     dockerfile: Dockerfile
-    #   container_name: openresty
-    #   command: ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
-    #   volumes:
-    #     - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
-    #     - ./nginx/lua/jwt_auth.lua:/usr/local/openresty/nginx/lua/jwt_auth.lua
-    #     - ./certbot/conf:/etc/letsencrypt:ro
-    #     - ./certbot/www:/var/www/certbot
-    #   ports:
-    #     - "80:80"
-    #     - "443:443"
-    #   # environment:
-    #   #   - JWT_SECRET=${JWT_SECRET}
-    #   env_file:
-    #     - .env
-    #   depends_on:
-    #     - go-server
-    #     # - grafana
-    #     - weaviate
-    #   networks:
-    #     - web
-    #   #profiles: ["dev"]
-    #   restart: unless-stopped
+  openresty:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: openresty
+    command: ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
+    volumes:
+      - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      # - ./nginx/lua/jwt_auth.lua:/usr/local/openresty/nginx/lua/jwt_auth.lua
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot
+    ports:
+      - "80:80"
+      - "443:443"
+    # environment:
+    #   - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - go-server
+      # - grafana
+      - weaviate
+    networks:
+      - web
+    #profiles: ["dev"]
+    restart: unless-stopped
 
-    # certbot:
-    #   image: certbot/certbot
+  certbot:
+    image: certbot/certbot
 
-    #   container_name: certbot
-    #   volumes:
-    #     - ./certbot/conf:/etc/letsencrypt
-    #     - ./certbot/www:/var/www/certbot
-    #   entrypoint: >
-    #     sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email muneet.dhanker@omlogic.com --agree-tos --no-eff-email -d stagingai.solhapp.com"
-    #   networks:
-    #     - web
+    container_name: certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: >
+      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email muneet.dhanker@omlogic.com --agree-tos --no-eff-email -d ai.omlogic.com"
+    networks:
+      - web
 
   kafka:
     image: apache/kafka:latest
     container_name: kafka
+    hostname: kafka
     ports:
       - "9092:9092"
+      - "9093:9093"
     environment:
-      KAFKA_PROCESS_ROLES: "broker,controller"
-      KAFKA_NODE_ID: "1"
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
-      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # Bind to all interfaces inside container
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      # Advertise the Docker service name for inter-container communication
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
       CLUSTER_ID: "qwertyuiopasdfghjklzxcvbnmhnhskk"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
     volumes:
       - kafka_data:/var/lib/kafka/data
+    networks:
+      - web
+
+    # # ---- FIXED HEALTHCHECK ----
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s # Give Kafka more time to start
+
+  loki-init:
+    image: alpine
+    command: >
+      sh -c "mkdir -p /loki/index /loki/chunks /loki/boltdb-cache /loki/compactor"
+    volumes:
+      - loki-data:/loki
+    restart: "no"
+
+  loki:
+    image: grafana/loki:2.9.1
+    container_name: loki
+    depends_on:
+      - loki-init
+    volumes:
+      - ./loki-config.yml:/etc/loki/loki-config.yml
+      - loki-data:/loki
+    command: "-config.file=/etc/loki/loki-config.yml"
+    ports:
+      - "3100:3100"
+    networks:
+      - web
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/promtail-config.yml
+    command: "-config.file=/etc/promtail/promtail-config.yml"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+    networks:
+      - web
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      # kafka:
+      #   condition: service_healthy
+      loki:
+        condition: service_healthy
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - web
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - web
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    ports:
+      - "8083:8080"
+    environment:
+      KAFKA_BROKERS: "kafka:9092"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - web
 
 volumes:
   rabbitmq_data:
   redis-data:
   kafka_data:
+  loki-data:
+  grafana-data:
 
 networks:
   web:
