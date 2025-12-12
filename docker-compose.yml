@@ -122,6 +122,8 @@ services:
     container_name: redisinsight
     ports:
       - "5540:5540"
+    environment:
+      - RI_PROXY_PATH=/redis-insight/
     restart: unless-stopped
     depends_on:
       redis:
@@ -129,6 +131,7 @@ services:
     networks:
       - web
 
+<<<<<<< HEAD
   # openresty:
   #   build:
   #     context: ./nginx
@@ -158,15 +161,46 @@ services:
 
   # certbot:
   #   image: certbot/certbot
+=======
+  openresty:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: openresty
+    command: ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
+    volumes:
+      - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      # - ./nginx/lua/jwt_auth.lua:/usr/local/openresty/nginx/lua/jwt_auth.lua
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot
+    ports:
+      - "80:80"
+      - "443:443"
+    # environment:
+    #   - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      - go-server
+      # - grafana
+      - weaviate
+    networks:
+      - web
+    #profiles: ["dev"]
+    restart: unless-stopped
+>>>>>>> c20a04a281014fbdd6ea5cde50973ccd9f195bc5
 
-  #   container_name: certbot
-  #   volumes:
-  #     - ./certbot/conf:/etc/letsencrypt
-  #     - ./certbot/www:/var/www/certbot
-  #   entrypoint: >
-  #     sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email muneet.dhanker@omlogic.com --agree-tos --no-eff-email -d stagingai.solhapp.com"
-  #   networks:
-  #     - web
+  certbot:
+    image: certbot/certbot
+
+    container_name: certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: >
+      sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot --email muneet.dhanker@omlogic.com --agree-tos --no-eff-email -d ai.omlogic.com"
+    networks:
+      - web
 
   kafka:
     image: apache/kafka:latest
